@@ -37,7 +37,11 @@ def registered_project_roots(workspace: Path) -> list[Path]:
         except (json.JSONDecodeError, TypeError):
             pass
     roots.update(database.parent.resolve() for database in workspace.rglob("editoragent.db"))
-    return sorted(roots)
+    return sorted(
+        root
+        for root in roots
+        if not any(part.startswith(".") for part in root.parts)
+    )
 
 
 def _register_root(workspace: Path, root: Path) -> None:

@@ -18,6 +18,7 @@ frontend/dist/
 # EditorAgent local projects and generated artifacts
 projects/
 .editoragent-projects.json
+.editoragent-system/
 **/editoragent.db
 **/analysis/
 **/exports/

@@ -22,7 +22,26 @@ if (-not (Test-Path $python)) {
 if (-not (Test-Path (Join-Path $frontendRoot 'package.json'))) {
     throw "No se encuentra el frontend Vite: $frontendRoot"
 }
-$ProjectRoot = (Resolve-Path $ProjectRoot).Path
+if (Test-Path $ProjectRoot) {
+    $ProjectRoot = (Resolve-Path $ProjectRoot).Path
+} else {
+    Write-Host "La ruta de proyecto no existe todavía: $ProjectRoot" -ForegroundColor Yellow
+    $ProjectRoot = Join-Path $repoRoot 'projects'
+}
+
+if (-not (Test-Path (Join-Path $ProjectRoot 'editoragent.db'))) {
+    $systemRoot = Join-Path $repoRoot '.editoragent-system'
+    if (-not (Test-Path (Join-Path $systemRoot 'editoragent.db'))) {
+        Write-Host "No hay un proyecto activo. Creando workspace interno..." -ForegroundColor Yellow
+        $createArgs = @('-m', 'editoragent.cli.main', 'project', 'create', 'EditorAgent workspace', '--root', $systemRoot)
+        & $python @createArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "No se pudo crear el workspace interno: $systemRoot"
+        }
+    }
+    $ProjectRoot = (Resolve-Path $systemRoot).Path
+    Write-Host "Sin proyecto seleccionado; se usa el workspace interno para abrir Project Desk." -ForegroundColor Yellow
+}
 
 function Get-ListeningProcess([int]$Port) {
     $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1

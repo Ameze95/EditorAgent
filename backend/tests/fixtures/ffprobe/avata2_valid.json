@@ -1,0 +1,34 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "hevc",
+      "codec_long_name": "H.265 / HEVC (High Efficiency Video Coding)",
+      "codec_type": "video",
+      "width": 3840,
+      "height": 2160,
+      "pix_fmt": "yuv420p10le",
+      "color_range": "tv",
+      "color_space": "bt709",
+      "color_transfer": "arib-std-b67",
+      "color_primaries": "bt709",
+      "r_frame_rate": "60000/1001",
+      "avg_frame_rate": "60000/1001",
+      "duration": "12.345000"
+    },
+    {
+      "index": 1,
+      "codec_name": "aac",
+      "codec_type": "audio"
+    }
+  ],
+  "format": {
+    "filename": "DJI_0001.MP4",
+    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+    "duration": "12.345000",
+    "size": "104857600",
+    "tags": {
+      "creation_time": "2026-09-01T10:15:30.000000Z"
+    }
+  }
+}

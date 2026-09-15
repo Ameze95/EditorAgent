@@ -1,0 +1,16 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "aac",
+      "codec_type": "audio"
+    }
+  ],
+  "format": {
+    "filename": "corrupted_no_video.MP4",
+    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+    "duration": "0.500000",
+    "size": "2048",
+    "tags": {}
+  }
+}

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+backend/.venv/
+.venv/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+.npm/
+
+# EditorAgent local projects and generated artifacts
+projects/
+.editoragent-projects.json
+**/editoragent.db
+**/analysis/
+**/exports/
+**/proxies/
+**/thumbnails/
+*.log
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and OS
+.vscode/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Temporary research/session output
+01-research/*
+!01-research/.gitkeep

@@ -1,0 +1,45 @@
+[project]
+name = "editoragent"
+version = "0.1.0"
+description = "EditorAgent analysis backend: ingestion, analysis and export pipeline for drone footage."
+requires-python = ">=3.12"
+dependencies = [
+    "sqlmodel>=0.0.22",
+    "typer>=0.12",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "opencv-python-headless>=4.10",
+    "numpy>=2.0",
+]
+
+[project.scripts]
+editoragent = "editoragent.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["editoragent"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx2>=0.1",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: Typer/FastAPI require calling Argument()/Option() in defaults; idiomatic there.
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true

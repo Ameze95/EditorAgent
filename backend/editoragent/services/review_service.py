@@ -106,6 +106,7 @@ def list_segments(project_root: Path, clip_id: str | None = None) -> list[Segmen
         statement = select(Segment).where(Segment.project_id == project.id)
         if clip_id:
             statement = statement.where(Segment.clip_id == clip_id)
+        statement = statement.order_by(col(Segment.clip_id), col(Segment.start_seconds))
         return list(session.exec(statement).all())
 
 
@@ -127,7 +128,8 @@ def update_segment_review(
         new_end = segment.end_seconds if end_seconds is None else end_seconds
         if new_start < 0 or new_end <= new_start:
             raise ValueError("El intervalo debe cumplir 0 <= inicio < fin.")
-        _ensure_no_overlap(session, segment.clip_id, new_start, new_end, segment_id)
+        if start_seconds is not None or end_seconds is not None:
+            _ensure_no_overlap(session, segment.clip_id, new_start, new_end, segment_id)
         segment.start_seconds = new_start
         segment.end_seconds = new_end
         if status is not None:

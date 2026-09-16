@@ -11,9 +11,10 @@ type ReviewInspectorProps = {
   onUpdate: (patch: Partial<Pick<Segment, 'status' | 'start_seconds' | 'end_seconds' | 'user_note'>>) => void
   onLabel: (patch: Pick<HumanLabel, 'utility_label' | 'shot_type' | 'motion_quality' | 'rejection_reason' | 'confidence' | 'note'>) => void
   onDraft: (patch: Partial<Segment>) => void
+  onMoveSegment: (offset: number) => void
 }
 
-export function ReviewInspector({ segment, label, saving, onUpdate, onLabel, onDraft }: ReviewInspectorProps) {
+export function ReviewInspector({ segment, label, saving, onUpdate, onLabel, onDraft, onMoveSegment }: ReviewInspectorProps) {
   if (!segment) {
     return <aside className="inspector panel">
       <div className="panel-heading"><div><Eyebrow>INSPECTOR</Eyebrow><h2>Decisión humana</h2></div></div>
@@ -23,6 +24,10 @@ export function ReviewInspector({ segment, label, saving, onUpdate, onLabel, onD
 
   return <aside className="inspector panel" key={segment.id}>
     <div className="panel-heading"><div><Eyebrow>INSPECTOR</Eyebrow><h2>Decisión humana</h2></div><StatusDot status={segment.status} /></div>
+    <div className="segment-nav-actions">
+      <button type="button" onClick={() => onMoveSegment(-1)}>← Segmento anterior</button>
+      <button type="button" onClick={() => onMoveSegment(1)}>Segmento siguiente →</button>
+    </div>
     <div className="decision-actions">
       <button className={segment.status === 'approved' ? 'chosen approve' : 'approve'} type="button" onClick={() => onUpdate({ status: 'approved' })}>✓ Aprobar</button>
       <button className={segment.status === 'rejected' ? 'chosen reject' : 'reject'} type="button" onClick={() => onUpdate({ status: 'rejected' })}>× Rechazar</button>

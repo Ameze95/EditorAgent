@@ -22,6 +22,23 @@ export type AnalysisProfile = {
   parameters: Record<string, number>
 }
 
+export type AnalyzeOverrides = {
+  profile_name?: string
+  enter_threshold?: number
+  exit_threshold?: number
+  minimum_duration_seconds?: number
+  critical_jerk_threshold?: number
+  critical_hard_turn_ratio?: number
+  critical_hard_brake_ratio?: number
+}
+
+export type EvaluationMetrics = {
+  usable_seconds: number
+  labeled_windows: number
+  current: { predicted_windows: number; precision: number; recall: number; precision_at_k: number; temporal_iou: number }
+  baseline_sharpness_exposure: { predicted_windows: number; precision: number; recall: number; precision_at_k: number; temporal_iou: number }
+}
+
 export type AnalysisRun = {
   id: string
   clip_id: string
@@ -94,11 +111,12 @@ export const reviewApi = {
   learningSummary: () => request<{ clips_total: number; clips_with_segments: number; segments_total: number; segments_labeled: number; labels_total: number; uncertain_labels: number; approved_segments: number; rejected_segments: number; coverage_percent: number; utility_labels: Record<string, number>; shot_types: Record<string, number>; motion_quality: Record<string, number> }>('/learning/summary'),
   scanFolder: (folderPath: string) => request<{ media_root_path: string; inspected: number; valid: number; unsupported: number; errored: number; reused_existing_root: boolean }>('/clips/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder_path: folderPath }) }),
   selectFolderDialog: () => request<{ path: string | null }>('/dialogs/select-folder', { method: 'POST' }),
-  analyzeClip: (clipId: string) => request<AnalysisJob>(`/clips/${clipId}/analyze`, { method: 'POST' }),
+  analyzeClip: (clipId: string, overrides?: AnalyzeOverrides) => request<AnalysisJob>(`/clips/${clipId}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(overrides ?? {}) }),
   analyzeAll: () => request<AnalysisJob>('/analysis/all', { method: 'POST' }),
   getAnalysisJob: (jobId: string) => request<AnalysisJob>(`/analysis/jobs/${jobId}`),
   cancelAnalysisJob: (jobId: string) => request<AnalysisJob>(`/analysis/jobs/${jobId}`, { method: 'DELETE' }),
   listAnalysisProfiles: () => request<AnalysisProfile[]>('/analysis/profiles'),
+  getAnalysisMetrics: (runId: string, enterThreshold: number, topK = 5) => request<EvaluationMetrics>(`/analysis/runs/${runId}/metrics?enter_threshold=${enterThreshold}&top_k=${topK}`),
   listAnalysisRuns: () => request<AnalysisRun[]>('/analysis/runs'),
   getAnalysisWindows: (runId: string) => request<AnalysisWindow[]>(`/analysis/runs/${runId}/windows`),
   getAnnotations: (runId: string) => request<{ intent_profile: string; intervals: AnnotationInterval[] }>(`/evaluation/annotations/${runId}`),

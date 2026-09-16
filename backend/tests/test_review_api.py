@@ -180,6 +180,81 @@ def test_calibration_api_loads_and_saves_annotations(tmp_path: Path) -> None:
     assert annotations["intervals"][0]["label"] == "usable"
 
 
+def test_analysis_run_metrics_previews_threshold_against_annotations(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project = create_project("Metrics", project_root)
+    windows_path = project_root / "analysis" / "run_windows.json"
+    windows_path.parent.mkdir()
+    windows_path.write_text(
+        json.dumps(
+            [
+                {
+                    "start_seconds": 0.0,
+                    "end_seconds": 3.0,
+                    "sharpness_norm": 0.9,
+                    "exposure_norm": 0.9,
+                    "direction_coherence": 0.9,
+                    "tracking_confidence": 0.9,
+                    "stability_norm": 0.9,
+                    "jerk_norm": 0.0,
+                    "hard_turn_ratio": 0.0,
+                    "hard_brake_ratio": 0.0,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with get_session(project_root) as session:
+        run = AnalysisRun(
+            project_id=project.id,
+            clip_id="clip-1",
+            profile_name="cinematic_drone_v1",
+            config_json="{}",
+            config_hash="hash",
+            analyzer_version="test",
+            status=AnalysisRunStatus.COMPLETED,
+            windows_path=str(windows_path),
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    client = TestClient(create_app(project_root))
+    client.put(
+        f"/evaluation/annotations/{run_id}",
+        json={"intent_profile": "cinematic", "intervals": [
+            {"start_seconds": 0, "end_seconds": 3, "label": "usable"}
+        ]},
+    )
+
+    lenient = client.get(f"/analysis/runs/{run_id}/metrics", params={"enter_threshold": 0.5})
+    strict = client.get(f"/analysis/runs/{run_id}/metrics", params={"enter_threshold": 0.99})
+
+    assert lenient.status_code == 200
+    assert lenient.json()["current"]["recall"] == 1.0
+    assert strict.json()["current"]["recall"] == 0.0
+
+
+def test_analyze_clip_rejects_unknown_profile_override(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    source_folder = tmp_path / "source"
+    source_folder.mkdir()
+    create_project("Overrides", project_root)
+    from editoragent.services import media_service
+
+    media_service.add_media_root(project_root, source_folder, confirm_read_only=True)
+    (source_folder / "clip.mp4").write_bytes(b"fake")
+    client = TestClient(create_app(project_root))
+    clip_id = media_service.inspect_clip(project_root, source_folder / "clip.mp4").clip.id
+
+    response = client.post(
+        f"/clips/{clip_id}/analyze", json={"profile_name": "does_not_exist"}
+    )
+
+    assert response.status_code == 422
+
+
 def test_human_labels_are_persisted_separately_from_editorial_segments(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     create_project("Labels", project_root)
@@ -266,6 +341,40 @@ def test_manual_segments_cannot_overlap(tmp_path: Path, monkeypatch, load_ffprob
 
     assert first.status_code == 200
     assert second.status_code == 422
+
+
+def test_approving_segment_ignores_overlap_with_preexisting_sibling(tmp_path: Path) -> None:
+    """Approve/reject must not fail even if legacy overlapping segments exist."""
+    project_root = tmp_path / "project"
+    project = create_project("Legacy overlap", project_root)
+    with get_session(project_root) as session:
+        first = Segment(
+            project_id=project.id,
+            clip_id="clip-1",
+            analysis_run_id="run-1",
+            start_seconds=2.0,
+            end_seconds=8.0,
+            technical_score=0.7,
+        )
+        second = Segment(
+            project_id=project.id,
+            clip_id="clip-1",
+            analysis_run_id="run-2",
+            start_seconds=5.0,
+            end_seconds=10.0,
+            technical_score=0.6,
+        )
+        session.add(first)
+        session.add(second)
+        session.commit()
+        session.refresh(first)
+        segment_id = first.id
+
+    client = TestClient(create_app(project_root))
+    response = client.patch(f"/segments/{segment_id}", json={"status": "approved"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "approved"
 
 
 def test_analysis_job_cancel_stops_active_clip(monkeypatch, tmp_path: Path) -> None:

@@ -89,7 +89,48 @@ def evaluate_windows(
     """Compare current score and sharpness/exposure baseline against usable intervals."""
     windows = json.loads(windows_json.read_text(encoding="utf-8"))
     annotation = load_annotations(annotation_path)
-    usable = [item for item in annotation.intervals if item.label == "usable"]
+    result = evaluate_windows_data(
+        windows,
+        [
+            {
+                "start_seconds": item.start_seconds,
+                "end_seconds": item.end_seconds,
+                "label": item.label,
+            }
+            for item in annotation.intervals
+        ],
+        enter_threshold=enter_threshold,
+        top_k=top_k,
+    )
+    return {
+        "clip_id": annotation.clip_id,
+        "relative_path": annotation.relative_path,
+        **result,
+        "unlabeled_windows": sum(item.label == "unlabeled" for item in annotation.intervals),
+    }
+
+
+def evaluate_windows_data(
+    windows: list[dict[str, Any]],
+    intervals: list[dict[str, Any]],
+    *,
+    enter_threshold: float = 0.72,
+    top_k: int = 5,
+) -> dict[str, Any]:
+    """Same comparison as `evaluate_windows`, operating on in-memory data.
+
+    Used by the API so the calibration UI can preview a threshold's effect on
+    the user's own annotations without needing the CLI template file layout.
+    """
+    usable = [
+        LabeledInterval(
+            start_seconds=float(item["start_seconds"]),
+            end_seconds=float(item["end_seconds"]),
+            label=str(item["label"]),
+        )
+        for item in intervals
+        if item.get("label") == "usable"
+    ]
     current = [
         item
         for item in windows
@@ -101,12 +142,10 @@ def evaluate_windows(
         reverse=True,
     )[: len(current)]
     return {
-        "clip_id": annotation.clip_id,
-        "relative_path": annotation.relative_path,
         "usable_seconds": round(sum(_duration(item) for item in usable), 3),
+        "labeled_windows": len(intervals),
         "current": _metrics(current, usable, top_k=top_k),
         "baseline_sharpness_exposure": _metrics(baseline, usable, top_k=top_k),
-        "unlabeled_windows": sum(item.label == "unlabeled" for item in annotation.intervals),
     }
 
 

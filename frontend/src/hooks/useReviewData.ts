@@ -48,7 +48,9 @@ export function useReviewData() {
 
   const selectedClip = clips.find((item) => item.id === selectedClipId)
   const clipSegments = useMemo(
-    () => segments.filter((item) => item.clip_id === selectedClipId),
+    () => segments
+      .filter((item) => item.clip_id === selectedClipId)
+      .sort((first, second) => first.start_seconds - second.start_seconds),
     [segments, selectedClipId],
   )
   const selected = useMemo(

@@ -25,11 +25,12 @@ from editoragent.domain.models import (
 )
 from editoragent.infrastructure.db import get_session
 from editoragent.services.analysis_jobs import AnalysisJobManager
-from editoragent.services.analysis_service import PROFILE_DEFAULTS
+from editoragent.services.analysis_service import PROFILE_DEFAULTS, AnalysisConfig
 from editoragent.services.dataset_export_service import (
     export_dataset_csv,
     export_dataset_json,
 )
+from editoragent.services.evaluation_service import evaluate_windows_data
 from editoragent.services.export_service import (
     ExportClipInvalidError,
     export_approved_edl,
@@ -112,6 +113,23 @@ class ManualSegmentPayload(BaseModel):
     clip_id: str
     start_seconds: float = Field(ge=0)
     end_seconds: float = Field(gt=0)
+
+
+class AnalyzeOverrides(BaseModel):
+    profile_name: str | None = None
+    enter_threshold: float | None = Field(default=None, gt=0, le=1)
+    exit_threshold: float | None = Field(default=None, gt=0, le=1)
+    minimum_duration_seconds: float | None = Field(default=None, gt=0)
+    critical_jerk_threshold: float | None = Field(default=None, gt=0, le=1)
+    critical_hard_turn_ratio: float | None = Field(default=None, gt=0, le=1)
+    critical_hard_brake_ratio: float | None = Field(default=None, gt=0, le=1)
+
+
+def _build_analysis_config(overrides: AnalyzeOverrides | None) -> AnalysisConfig | None:
+    if overrides is None:
+        return None
+    values = overrides.model_dump(exclude_none=True, exclude={"profile_name"})
+    return AnalysisConfig.from_profile(overrides.profile_name or "cinematic_drone_v1", **values)
 
 
 def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAPI:
@@ -376,6 +394,31 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
             raise HTTPException(status_code=500, detail="El archivo de anotaciones no es válido.")
         return cast(dict[str, object], payload)
 
+    @app.get("/analysis/runs/{run_id}/metrics")
+    def analysis_run_metrics(
+        run_id: str,
+        enter_threshold: Annotated[float, Query(gt=0, le=1)] = 0.72,
+        top_k: Annotated[int, Query(ge=1)] = 5,
+    ) -> dict[str, object]:
+        """Preview precision/recall/IoU for a threshold against the run's own annotations."""
+        project = get_project(current_root())
+        with get_session(current_root()) as session:
+            run = session.get(AnalysisRun, run_id)
+            if run is None or run.project_id != project.id or not run.windows_path:
+                raise HTTPException(status_code=404, detail="Ejecución de análisis no encontrada.")
+            windows_path = Path(run.windows_path)
+        if not windows_path.is_file():
+            raise HTTPException(status_code=404, detail="No se encuentra el artefacto de ventanas.")
+        windows = json.loads(windows_path.read_text(encoding="utf-8"))
+        annotations_path = current_root() / "evaluation" / "annotations" / f"{run_id}.json"
+        intervals: list[dict[str, object]] = []
+        if annotations_path.is_file():
+            document = json.loads(annotations_path.read_text(encoding="utf-8"))
+            intervals = document.get("intervals", []) if isinstance(document, dict) else []
+        return evaluate_windows_data(
+            windows, intervals, enter_threshold=enter_threshold, top_k=top_k
+        )
+
     @app.put("/evaluation/annotations/{run_id}")
     def save_annotations(run_id: str, document: AnnotationDocument) -> dict[str, object]:
         project = get_project(current_root())
@@ -473,13 +516,19 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
         return FileResponse(proxy, media_type="video/mp4", filename=proxy.name)
 
     @app.post("/clips/{clip_id}/analyze")
-    def analyze_clip_endpoint(clip_id: str) -> dict[str, object]:
+    def analyze_clip_endpoint(
+        clip_id: str, overrides: AnalyzeOverrides | None = None
+    ) -> dict[str, object]:
         project = get_project(current_root())
         with get_session(current_root()) as session:
             clip = session.get(Clip, clip_id)
             if clip is None or clip.project_id != project.id:
                 raise HTTPException(status_code=404, detail="Clip no encontrado.")
-        job = analysis_jobs.start(current_root(), [clip_id])
+        try:
+            config = _build_analysis_config(overrides)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        job = analysis_jobs.start(current_root(), [clip_id], config)
         return job.snapshot()
 
     @app.post("/analysis/all")

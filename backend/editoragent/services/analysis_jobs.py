@@ -18,6 +18,7 @@ class AnalysisJob:
     id: str
     project_root: Path
     clip_ids: list[str]
+    config: analysis_service.AnalysisConfig | None = None
     status: str = "queued"
     completed: int = 0
     current_progress: int = 0
@@ -61,8 +62,15 @@ class AnalysisJobManager:
         self._jobs: dict[str, AnalysisJob] = {}
         self._lock = Lock()
 
-    def start(self, project_root: Path, clip_ids: list[str]) -> AnalysisJob:
-        job = AnalysisJob(id=str(uuid4()), project_root=project_root, clip_ids=clip_ids)
+    def start(
+        self,
+        project_root: Path,
+        clip_ids: list[str],
+        config: analysis_service.AnalysisConfig | None = None,
+    ) -> AnalysisJob:
+        job = AnalysisJob(
+            id=str(uuid4()), project_root=project_root, clip_ids=clip_ids, config=config
+        )
         with self._lock:
             self._jobs[job.id] = job
         Thread(target=self._run, args=(job,), daemon=True).start()
@@ -97,6 +105,7 @@ class AnalysisJobManager:
                 analysis_service.analyze_clip(
                     job.project_root,
                     relative_path,
+                    config=job.config,
                     cancel_event=job._cancel,
                     progress_callback=lambda frames, total, phase: self._update_progress(
                         job, frames, total, phase

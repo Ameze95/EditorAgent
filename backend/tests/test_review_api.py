@@ -137,6 +137,15 @@ def test_analysis_profiles_api_lists_calibration_presets(tmp_path: Path) -> None
     names = {item["name"] for item in response.json()}
     assert "cinematic_traveling_v1" in names
     assert "recall_high_v1" in names
+    gimbal = next(item for item in response.json() if item["name"] == "cinematic_gimbal_v1")
+    assert gimbal["capture_type"] == "gimbal"
+    assert sum(gimbal["parameters"][key] for key in (
+        "weight_sharpness",
+        "weight_exposure",
+        "weight_direction",
+        "weight_tracking",
+        "weight_stability",
+    )) == 1.0
 
 
 def test_calibration_api_loads_and_saves_annotations(tmp_path: Path) -> None:
@@ -236,6 +245,38 @@ def test_analysis_run_metrics_previews_threshold_against_annotations(tmp_path: P
     assert strict.json()["current"]["recall"] == 0.0
 
 
+def test_analysis_windows_resolves_artifact_after_project_move(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project = create_project("Moved project", project_root)
+    windows_path = project_root / "analysis" / "moved_windows.json"
+    windows_path.parent.mkdir()
+    windows_path.write_text(
+        json.dumps([{"start_seconds": 2.0, "end_seconds": 5.0}]),
+        encoding="utf-8",
+    )
+    with get_session(project_root) as session:
+        run = AnalysisRun(
+            project_id=project.id,
+            clip_id="clip-1",
+            profile_name="cinematic_drone_v1",
+            config_json="{}",
+            config_hash="hash",
+            analyzer_version="test",
+            status=AnalysisRunStatus.COMPLETED,
+            windows_path=str(tmp_path / "old-location" / windows_path.name),
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    client = TestClient(create_app(project_root))
+    response = client.get(f"/analysis/runs/{run_id}/windows")
+
+    assert response.status_code == 200
+    assert response.json()[0]["start_seconds"] == 2.0
+
+
 def test_analyze_clip_rejects_unknown_profile_override(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     source_folder = tmp_path / "source"
@@ -267,12 +308,17 @@ def test_human_labels_are_persisted_separately_from_editorial_segments(tmp_path:
             "start_seconds": 1.0,
             "end_seconds": 5.0,
             "utility_label": "usable",
+            "capture_type": "gimbal",
+            "motion_intent": "traveling",
             "shot_type": "traveling",
             "motion_quality": "smooth",
+            "technical_issues": ["exposure"],
         },
     )
 
     assert created.status_code == 200
+    assert created.json()["capture_type"] == "gimbal"
+    assert created.json()["technical_issues"] == ["exposure"]
     label_id = created.json()["id"]
     listed = client.get("/labels?clip_id=clip-1")
     assert listed.status_code == 200

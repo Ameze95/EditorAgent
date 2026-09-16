@@ -123,9 +123,9 @@ export function ReviewPage({ onBack, onCalibration, onLearning }: { onBack: () =
       }
       else if (event.key.toLowerCase() === 'a' && selected) { event.preventDefault(); void updateSegment({ status: 'approved' }) }
       else if (event.key.toLowerCase() === 'r' && selected) { event.preventDefault(); void updateSegment({ status: 'rejected' }) }
-      else if (event.key === '1' && selected) { event.preventDefault(); void saveLabel({ utility_label: 'usable', shot_type: null, motion_quality: null, rejection_reason: null, confidence: 'high', note: null }) }
-      else if (event.key === '2' && selected) { event.preventDefault(); void saveLabel({ utility_label: 'unusable', shot_type: null, motion_quality: 'abrupt', rejection_reason: 'other', confidence: 'high', note: null }) }
-      else if (event.key === '3' && selected) { event.preventDefault(); void saveLabel({ utility_label: 'uncertain', shot_type: null, motion_quality: null, rejection_reason: null, confidence: 'low', note: null }) }
+      else if (event.key === '1' && selected) { event.preventDefault(); void saveLabel({ utility_label: 'usable', capture_type: null, motion_intent: null, shot_type: null, motion_quality: null, rejection_reason: null, technical_issues: [], confidence: 'high', note: null }) }
+      else if (event.key === '2' && selected) { event.preventDefault(); void saveLabel({ utility_label: 'unusable', capture_type: null, motion_intent: null, shot_type: null, motion_quality: 'abrupt', rejection_reason: 'other', technical_issues: [], confidence: 'high', note: null }) }
+      else if (event.key === '3' && selected) { event.preventDefault(); void saveLabel({ utility_label: 'uncertain', capture_type: null, motion_intent: null, shot_type: null, motion_quality: null, rejection_reason: null, technical_issues: [], confidence: 'low', note: null }) }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => {

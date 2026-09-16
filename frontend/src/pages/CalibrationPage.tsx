@@ -31,6 +31,15 @@ const paramFields: Array<[key: keyof AnalyzeOverrides, label: string, step: numb
   ['critical_hard_turn_ratio', 'Giro brusco crítico', 0.01],
   ['critical_hard_brake_ratio', 'Frenazo crítico', 0.01],
 ]
+const advancedParamFields: Array<[key: keyof AnalyzeOverrides, label: string, step: number]> = [
+  ['sample_fps', 'Muestreo (FPS)', 0.5],
+  ['window_seconds', 'Ventana (s)', 0.1],
+  ['overlap_ratio', 'Solapamiento', 0.05],
+  ['merge_gap_seconds', 'Unir huecos (s)', 0.1],
+  ['handle_seconds', 'Margen del segmento (s)', 0.1],
+  ['critical_stability_floor', 'Estabilidad mínima', 0.01],
+  ['critical_tracking_floor', 'Tracking mínimo', 0.01],
+]
 
 const keyFor = (window: AnalysisWindow) => `${window.start_seconds}-${window.end_seconds}`
 const time = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
@@ -56,18 +65,17 @@ export function CalibrationPage({ onBack }: CalibrationPageProps) {
   const [metricsRefreshKey, setMetricsRefreshKey] = useState(0)
 
   useEffect(() => {
-    void reviewApi.listClips().then(setClips).catch(() => setMessage('No se pudieron cargar los clips del proyecto.'))
-    void reviewApi.listAnalysisRuns().then((loaded) => {
-      setRuns(loaded.filter((run) => run.status === 'completed'))
-      setRunId(loaded.find((run) => run.status === 'completed')?.id ?? '')
-    }).catch(() => setMessage('No se pudieron cargar los análisis completados.'))
-    void reviewApi.listAnalysisProfiles().then((loaded) => {
-      setProfiles(loaded)
-      if (loaded.length) {
-        setProfileName(loaded[0].name)
-        setOverrides(loaded[0].parameters)
-      }
-    }).catch(() => setMessage('No se pudieron cargar los perfiles de análisis.'))
+    void Promise.all([reviewApi.listClips(), reviewApi.listAnalysisRuns(), reviewApi.listAnalysisProfiles()]).then(([loadedClips, loadedRuns, loadedProfiles]) => {
+      const usableRuns = loadedRuns.filter((run) => run.status === 'completed' && run.windows_available)
+      const firstRun = usableRuns[0]
+      const firstProfile = loadedProfiles.find((profile) => profile.name === firstRun?.profile_name) ?? loadedProfiles[0]
+      setClips(loadedClips)
+      setRuns(usableRuns)
+      setRunId(firstRun?.id ?? '')
+      setProfiles(loadedProfiles)
+      setProfileName(firstProfile?.name ?? '')
+      setOverrides(firstProfile?.parameters ?? {})
+    }).catch(() => setMessage('No se pudieron cargar los datos de calibración.'))
   }, [])
 
   useEffect(() => {
@@ -191,15 +199,17 @@ export function CalibrationPage({ onBack }: CalibrationPageProps) {
   }
 
   return <main className="calibration-shell">
-    <header className="calibration-header"><button className="back-button" type="button" onClick={onBack} aria-label="Volver a revisión">←</button><div><Eyebrow>BACKOFFICE / CALIBRACIÓN</Eyebrow><h1>Etiquetar ventanas reales</h1></div><button className="quiet-button" type="button" onClick={() => void save()} disabled={busy || !runId}>Guardar anotaciones</button></header>
+    <header className="calibration-header"><button className="back-button" type="button" onClick={onBack} aria-label="Volver a revisión">←</button><div><Eyebrow>REVISIÓN / APRENDIZAJE</Eyebrow><h1>Revisar y etiquetar tomas</h1></div><button className="quiet-button" type="button" onClick={() => void save()} disabled={busy || !runId}>Guardar anotaciones</button></header>
     <section className="calibration-toolbar panel"><label><Eyebrow>EJECUCIÓN</Eyebrow><select value={runId} onChange={(event) => selectRun(event.target.value)}><option value="">Selecciona un análisis</option>{runs.map((run) => <option value={run.id} key={run.id}>{clips.find((clip) => clip.id === run.clip_id)?.relative_path ?? run.clip_id} · {run.profile_name} · {new Date(run.started_at).toLocaleString()}</option>)}</select></label><label><Eyebrow>INTENCIÓN DEL VUELO</Eyebrow><select value={intentProfile} onChange={(event) => setIntentProfile(event.target.value)}><option value="cinematic">Cinemático</option><option value="fpv">FPV</option><option value="static">Estático</option></select></label><div className="calibration-summary"><strong>{windows.length}</strong><span>ventanas · {annotations.filter((item) => item.label !== 'unlabeled').length} etiquetadas</span></div></section>
 
     <section className="calibration-tuning panel">
       <div className="panel-heading"><div><Eyebrow>PRECISIÓN</Eyebrow><h2>Ajustar perfil y reanalizar</h2></div></div>
       <div className="calibration-tuning-grid">
-        <label>Perfil<select value={profileName} onChange={(event) => selectProfile(event.target.value)}>{profiles.map((profile) => <option value={profile.name} key={profile.name}>{profile.name}</option>)}</select></label>
+        <label>Perfil<select value={profileName} onChange={(event) => selectProfile(event.target.value)}>{profiles.map((profile) => <option value={profile.name} key={profile.name}>{profile.label ?? profile.name}</option>)}</select></label>
         {paramFields.map(([key, label, step]) => <label key={key}>{label}<input type="number" step={step} value={overrides[key] ?? ''} onChange={(event) => updateOverride(key, Number(event.target.value))} /></label>)}
       </div>
+      {profiles.find((profile) => profile.name === profileName) && <p className="calibration-profile-context">{profiles.find((profile) => profile.name === profileName)?.capture_type} · {profiles.find((profile) => profile.name === profileName)?.motion_intent}</p>}
+      <details className="calibration-advanced"><summary>Parámetros avanzados del análisis</summary><div className="calibration-tuning-grid">{advancedParamFields.map(([key, label, step]) => <label key={key}>{label}<input type="number" step={step} value={overrides[key] ?? ''} onChange={(event) => updateOverride(key, Number(event.target.value))} /></label>)}</div></details>
       <div className="calibration-tuning-actions">
         <button type="button" onClick={() => void reanalyze()} disabled={reanalyzing || !selectedRun}>{reanalyzing ? 'Reanalizando…' : 'Reanalizar clip con estos parámetros'}</button>
         <small>Conserva las anotaciones al reanalizar el mismo clip.</small>

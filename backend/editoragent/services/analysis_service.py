@@ -40,6 +40,44 @@ DEFAULT_SAMPLE_FPS = 4.0
 DEFAULT_WINDOW_SECONDS = 3.0
 DEFAULT_OVERLAP_RATIO = 0.5
 
+PROFILE_WEIGHTS: dict[str, dict[str, float]] = {
+    "cinematic_drone_v1": {
+        "weight_sharpness": 0.32,
+        "weight_exposure": 0.20,
+        "weight_direction": 0.24,
+        "weight_tracking": 0.12,
+        "weight_stability": 0.12,
+    },
+    "cinematic_traveling_v1": {
+        "weight_sharpness": 0.28,
+        "weight_exposure": 0.18,
+        "weight_direction": 0.30,
+        "weight_tracking": 0.14,
+        "weight_stability": 0.10,
+    },
+    "fpv_controlled_v1": {
+        "weight_sharpness": 0.24,
+        "weight_exposure": 0.16,
+        "weight_direction": 0.34,
+        "weight_tracking": 0.16,
+        "weight_stability": 0.10,
+    },
+    "static_aerial_v1": {
+        "weight_sharpness": 0.38,
+        "weight_exposure": 0.25,
+        "weight_direction": 0.10,
+        "weight_tracking": 0.07,
+        "weight_stability": 0.20,
+    },
+    "recall_high_v1": {
+        "weight_sharpness": 0.32,
+        "weight_exposure": 0.18,
+        "weight_direction": 0.25,
+        "weight_tracking": 0.15,
+        "weight_stability": 0.10,
+    },
+}
+
 PROFILE_DEFAULTS: dict[str, dict[str, float]] = {
     "cinematic_drone_v1": {
         "enter_threshold": 0.72,
@@ -81,6 +119,119 @@ PROFILE_DEFAULTS: dict[str, dict[str, float]] = {
         "critical_hard_turn_ratio": 0.40,
         "critical_hard_brake_ratio": 0.35,
     },
+    "cinematic_gimbal_v1": {
+        "enter_threshold": 0.70,
+        "exit_threshold": 0.58,
+        "minimum_duration_seconds": 3.0,
+        "critical_jerk_threshold": 0.62,
+        "critical_hard_turn_ratio": 0.22,
+        "critical_hard_brake_ratio": 0.18,
+        "critical_stability_floor": 0.32,
+        "critical_tracking_floor": 0.18,
+        "merge_gap_seconds": 1.0,
+        "handle_seconds": 0.5,
+    },
+    "handheld_cinematic_v1": {
+        "enter_threshold": 0.60,
+        "exit_threshold": 0.48,
+        "minimum_duration_seconds": 2.0,
+        "critical_jerk_threshold": 0.85,
+        "critical_hard_turn_ratio": 0.40,
+        "critical_hard_brake_ratio": 0.35,
+        "critical_stability_floor": 0.28,
+        "critical_tracking_floor": 0.15,
+        "merge_gap_seconds": 0.8,
+        "handle_seconds": 0.35,
+    },
+    "tripod_static_v1": {
+        "enter_threshold": 0.82,
+        "exit_threshold": 0.74,
+        "minimum_duration_seconds": 4.5,
+        "critical_jerk_threshold": 0.35,
+        "critical_hard_turn_ratio": 0.08,
+        "critical_hard_brake_ratio": 0.08,
+        "critical_stability_floor": 0.25,
+        "critical_tracking_floor": 0.15,
+        "merge_gap_seconds": 1.5,
+        "handle_seconds": 0.5,
+    },
+    "action_camera_v1": {
+        "enter_threshold": 0.62,
+        "exit_threshold": 0.50,
+        "minimum_duration_seconds": 2.0,
+        "critical_jerk_threshold": 0.75,
+        "critical_hard_turn_ratio": 0.35,
+        "critical_hard_brake_ratio": 0.30,
+        "critical_stability_floor": 0.38,
+        "critical_tracking_floor": 0.20,
+        "merge_gap_seconds": 0.8,
+        "handle_seconds": 0.35,
+    },
+    "vehicle_traveling_v1": {
+        "enter_threshold": 0.66,
+        "exit_threshold": 0.54,
+        "minimum_duration_seconds": 3.0,
+        "critical_jerk_threshold": 0.70,
+        "critical_hard_turn_ratio": 0.30,
+        "critical_hard_brake_ratio": 0.25,
+        "critical_stability_floor": 0.36,
+        "critical_tracking_floor": 0.20,
+        "merge_gap_seconds": 1.0,
+        "handle_seconds": 0.5,
+    },
+}
+
+PROFILE_METADATA: dict[str, dict[str, str]] = {
+    "cinematic_drone_v1": {
+        "capture_type": "drone",
+        "motion_intent": "cinematic",
+        "label": "Dron cinematográfico",
+    },
+    "cinematic_traveling_v1": {
+        "capture_type": "drone",
+        "motion_intent": "traveling",
+        "label": "Dron travelling",
+    },
+    "fpv_controlled_v1": {
+        "capture_type": "fpv",
+        "motion_intent": "dynamic",
+        "label": "FPV controlado",
+    },
+    "static_aerial_v1": {
+        "capture_type": "drone",
+        "motion_intent": "static",
+        "label": "Aérea estática",
+    },
+    "recall_high_v1": {
+        "capture_type": "generic",
+        "motion_intent": "recall",
+        "label": "Explorar más material",
+    },
+    "cinematic_gimbal_v1": {
+        "capture_type": "gimbal",
+        "motion_intent": "cinematic",
+        "label": "Gimbal cinematográfico",
+    },
+    "handheld_cinematic_v1": {
+        "capture_type": "handheld",
+        "motion_intent": "cinematic",
+        "label": "Cámara en mano",
+    },
+    "tripod_static_v1": {
+        "capture_type": "tripod",
+        "motion_intent": "static",
+        "label": "Trípode / plano fijo",
+    },
+    "action_camera_v1": {
+        "capture_type": "action_camera",
+        "motion_intent": "dynamic",
+        "label": "Action cam",
+    },
+    "vehicle_traveling_v1": {
+        "capture_type": "vehicle",
+        "motion_intent": "traveling",
+        "label": "Vehículo travelling",
+    },
 }
 
 
@@ -116,13 +267,22 @@ class AnalysisConfig:
     critical_tracking_floor: float = 0.20
     critical_hard_turn_ratio: float = 0.15
     critical_hard_brake_ratio: float = 0.15
+    weight_sharpness: float = 0.40
+    weight_exposure: float = 0.25
+    weight_direction: float = 0.20
+    weight_tracking: float = 0.10
+    weight_stability: float = 0.05
 
     @classmethod
     def from_profile(cls, profile_name: str, **overrides: float) -> AnalysisConfig:
         if profile_name not in PROFILE_DEFAULTS:
             available = ", ".join(available_profiles())
             raise ValueError(f"Perfil desconocido '{profile_name}'. Disponibles: {available}")
-        values = {**PROFILE_DEFAULTS[profile_name], **overrides}
+        values = {
+            **PROFILE_WEIGHTS.get(profile_name, {}),
+            **PROFILE_DEFAULTS[profile_name],
+            **overrides,
+        }
         return replace(cls(profile_name=profile_name), **cast(Any, values))
 
     def config_hash(self) -> str:
@@ -141,6 +301,11 @@ class AnalysisConfig:
             critical_tracking_floor=self.critical_tracking_floor,
             critical_hard_turn_ratio=self.critical_hard_turn_ratio,
             critical_hard_brake_ratio=self.critical_hard_brake_ratio,
+            weight_sharpness=self.weight_sharpness,
+            weight_exposure=self.weight_exposure,
+            weight_direction=self.weight_direction,
+            weight_tracking=self.weight_tracking,
+            weight_stability=self.weight_stability,
         )
 
 

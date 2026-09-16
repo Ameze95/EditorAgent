@@ -25,7 +25,11 @@ from editoragent.domain.models import (
 )
 from editoragent.infrastructure.db import get_session
 from editoragent.services.analysis_jobs import AnalysisJobManager
-from editoragent.services.analysis_service import PROFILE_DEFAULTS, AnalysisConfig
+from editoragent.services.analysis_service import (
+    PROFILE_DEFAULTS,
+    PROFILE_METADATA,
+    AnalysisConfig,
+)
 from editoragent.services.dataset_export_service import (
     export_dataset_csv,
     export_dataset_json,
@@ -101,9 +105,12 @@ class HumanLabelPayload(BaseModel):
     start_seconds: float = Field(ge=0)
     end_seconds: float = Field(gt=0)
     utility_label: str
+    capture_type: str | None = None
+    motion_intent: str | None = None
     shot_type: str | None = None
     motion_quality: str | None = None
     rejection_reason: str | None = None
+    technical_issues: list[str] = Field(default_factory=list)
     confidence: str | None = None
     note: str | None = None
     annotator: str = "local-user"
@@ -117,12 +124,24 @@ class ManualSegmentPayload(BaseModel):
 
 class AnalyzeOverrides(BaseModel):
     profile_name: str | None = None
+    sample_fps: float | None = Field(default=None, gt=0, le=30)
+    window_seconds: float | None = Field(default=None, gt=0, le=10)
+    overlap_ratio: float | None = Field(default=None, ge=0, lt=1)
     enter_threshold: float | None = Field(default=None, gt=0, le=1)
     exit_threshold: float | None = Field(default=None, gt=0, le=1)
     minimum_duration_seconds: float | None = Field(default=None, gt=0)
+    merge_gap_seconds: float | None = Field(default=None, ge=0)
+    handle_seconds: float | None = Field(default=None, ge=0)
     critical_jerk_threshold: float | None = Field(default=None, gt=0, le=1)
+    critical_stability_floor: float | None = Field(default=None, ge=0, le=1)
+    critical_tracking_floor: float | None = Field(default=None, ge=0, le=1)
     critical_hard_turn_ratio: float | None = Field(default=None, gt=0, le=1)
     critical_hard_brake_ratio: float | None = Field(default=None, gt=0, le=1)
+    weight_sharpness: float | None = Field(default=None, ge=0, le=1)
+    weight_exposure: float | None = Field(default=None, ge=0, le=1)
+    weight_direction: float | None = Field(default=None, ge=0, le=1)
+    weight_tracking: float | None = Field(default=None, ge=0, le=1)
+    weight_stability: float | None = Field(default=None, ge=0, le=1)
 
 
 def _build_analysis_config(overrides: AnalyzeOverrides | None) -> AnalysisConfig | None:
@@ -130,6 +149,15 @@ def _build_analysis_config(overrides: AnalyzeOverrides | None) -> AnalysisConfig
         return None
     values = overrides.model_dump(exclude_none=True, exclude={"profile_name"})
     return AnalysisConfig.from_profile(overrides.profile_name or "cinematic_drone_v1", **values)
+
+
+def _resolve_analysis_artifact(project_root: Path, stored_path: str) -> Path:
+    """Resolve an artifact after a project folder move without leaving its root."""
+    candidate = Path(stored_path)
+    if candidate.is_file():
+        return candidate
+    fallback = project_root / "analysis" / candidate.name
+    return fallback
 
 
 def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAPI:
@@ -261,9 +289,14 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
         return [
             {
                 "name": name,
-                "parameters": parameters,
+                **PROFILE_METADATA.get(name, {}),
+                "parameters": {
+                    key: value
+                    for key, value in AnalysisConfig.from_profile(name).__dict__.items()
+                    if key != "profile_name"
+                },
             }
-            for name, parameters in sorted(PROFILE_DEFAULTS.items())
+            for name in sorted(PROFILE_DEFAULTS)
         ]
 
     @app.post("/labeling/sessions")
@@ -295,9 +328,12 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
                 "start_seconds": label.start_seconds,
                 "end_seconds": label.end_seconds,
                 "utility_label": label.utility_label,
+                "capture_type": label.capture_type,
+                "motion_intent": label.motion_intent,
                 "shot_type": label.shot_type,
                 "motion_quality": label.motion_quality,
                 "rejection_reason": label.rejection_reason,
+                "technical_issues": json.loads(label.technical_issues_json),
                 "confidence": label.confidence,
                 "note": label.note,
                 "annotator": label.annotator,
@@ -319,9 +355,12 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
                 start_seconds=payload.start_seconds,
                 end_seconds=payload.end_seconds,
                 utility_label=payload.utility_label,
+                capture_type=payload.capture_type,
+                motion_intent=payload.motion_intent,
                 shot_type=payload.shot_type,
                 motion_quality=payload.motion_quality,
                 rejection_reason=payload.rejection_reason,
+                technical_issues_json=json.dumps(payload.technical_issues),
                 confidence=payload.confidence,
                 note=payload.note,
                 annotator=payload.annotator,
@@ -335,9 +374,12 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
             "start_seconds": label.start_seconds,
             "end_seconds": label.end_seconds,
             "utility_label": label.utility_label,
+            "capture_type": label.capture_type,
+            "motion_intent": label.motion_intent,
             "shot_type": label.shot_type,
             "motion_quality": label.motion_quality,
             "rejection_reason": label.rejection_reason,
+            "technical_issues": json.loads(label.technical_issues_json),
             "confidence": label.confidence,
             "note": label.note,
             "annotator": label.annotator,
@@ -360,6 +402,10 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
                     "started_at": run.started_at.isoformat(),
                     "finished_at": run.finished_at.isoformat() if run.finished_at else None,
                     "windows_path": run.windows_path,
+                    "windows_available": bool(
+                        run.windows_path
+                        and _resolve_analysis_artifact(current_root(), run.windows_path).is_file()
+                    ),
                 }
                 for run in runs
             ]
@@ -371,7 +417,7 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
             run = session.get(AnalysisRun, run_id)
             if run is None or run.project_id != project.id or not run.windows_path:
                 raise HTTPException(status_code=404, detail="Ejecución de análisis no encontrada.")
-            windows_path = Path(run.windows_path)
+            windows_path = _resolve_analysis_artifact(current_root(), run.windows_path)
         if not windows_path.is_file():
             raise HTTPException(status_code=404, detail="No se encuentra el artefacto de ventanas.")
         payload = json.loads(windows_path.read_text(encoding="utf-8"))
@@ -406,17 +452,36 @@ def create_app(project_root: Path, workspace_root: Path | None = None) -> FastAP
             run = session.get(AnalysisRun, run_id)
             if run is None or run.project_id != project.id or not run.windows_path:
                 raise HTTPException(status_code=404, detail="Ejecución de análisis no encontrada.")
-            windows_path = Path(run.windows_path)
+            windows_path = _resolve_analysis_artifact(current_root(), run.windows_path)
         if not windows_path.is_file():
             raise HTTPException(status_code=404, detail="No se encuentra el artefacto de ventanas.")
         windows = json.loads(windows_path.read_text(encoding="utf-8"))
+        try:
+            config = json.loads(run.config_json)
+        except json.JSONDecodeError:
+            config = {}
+        score_weights = {
+            name.removeprefix("weight_"): float(config[name])
+            for name in (
+                "weight_sharpness",
+                "weight_exposure",
+                "weight_direction",
+                "weight_tracking",
+                "weight_stability",
+            )
+            if name in config
+        }
         annotations_path = current_root() / "evaluation" / "annotations" / f"{run_id}.json"
         intervals: list[dict[str, object]] = []
         if annotations_path.is_file():
             document = json.loads(annotations_path.read_text(encoding="utf-8"))
             intervals = document.get("intervals", []) if isinstance(document, dict) else []
         return evaluate_windows_data(
-            windows, intervals, enter_threshold=enter_threshold, top_k=top_k
+            windows,
+            intervals,
+            enter_threshold=enter_threshold,
+            top_k=top_k,
+            score_weights=score_weights or None,
         )
 
     @app.put("/evaluation/annotations/{run_id}")

@@ -77,9 +77,12 @@ def _label_payload(label: HumanLabel | None) -> dict[str, Any] | None:
     return {
         "id": label.id,
         "utility_label": label.utility_label,
+        "capture_type": label.capture_type,
+        "motion_intent": label.motion_intent,
         "shot_type": label.shot_type,
         "motion_quality": label.motion_quality,
         "rejection_reason": label.rejection_reason,
+        "technical_issues": json.loads(label.technical_issues_json),
         "confidence": label.confidence,
         "note": label.note,
         "annotator": label.annotator,

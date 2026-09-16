@@ -116,6 +116,7 @@ def evaluate_windows_data(
     *,
     enter_threshold: float = 0.72,
     top_k: int = 5,
+    score_weights: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Same comparison as `evaluate_windows`, operating on in-memory data.
 
@@ -134,7 +135,7 @@ def evaluate_windows_data(
     current = [
         item
         for item in windows
-        if _current_score(item) >= enter_threshold
+        if _current_score(item, score_weights) >= enter_threshold
     ]
     baseline = sorted(
         windows,
@@ -149,13 +150,22 @@ def evaluate_windows_data(
     }
 
 
-def _current_score(window: dict[str, Any]) -> float:
+def _current_score(
+    window: dict[str, Any], score_weights: dict[str, float] | None = None
+) -> float:
+    weights = score_weights or {
+        "sharpness": 0.40,
+        "exposure": 0.25,
+        "direction": 0.20,
+        "tracking": 0.10,
+        "stability": 0.05,
+    }
     return (
-        0.40 * float(window.get("sharpness_norm", 0.0))
-        + 0.25 * float(window.get("exposure_norm", 0.0))
-        + 0.20 * float(window.get("direction_coherence", 0.0))
-        + 0.10 * float(window.get("tracking_confidence", 0.0))
-        + 0.05 * float(window.get("stability_norm", 0.0))
+        weights.get("sharpness", 0.40) * float(window.get("sharpness_norm", 0.0))
+        + weights.get("exposure", 0.25) * float(window.get("exposure_norm", 0.0))
+        + weights.get("direction", 0.20) * float(window.get("direction_coherence", 0.0))
+        + weights.get("tracking", 0.10) * float(window.get("tracking_confidence", 0.0))
+        + weights.get("stability", 0.05) * float(window.get("stability_norm", 0.0))
         - 0.20 * float(window.get("jerk_norm", 0.0))
         - 0.30 * float(window.get("hard_turn_ratio", 0.0))
         - 0.30 * float(window.get("hard_brake_ratio", 0.0))

@@ -146,9 +146,12 @@ class HumanLabel(SQLModel, table=True):
     start_seconds: float
     end_seconds: float
     utility_label: str
+    capture_type: str | None = None
+    motion_intent: str | None = None
     shot_type: str | None = None
     motion_quality: str | None = None
     rejection_reason: str | None = None
+    technical_issues_json: str = "[]"
     confidence: str | None = None
     note: str | None = None
     annotator: str = "local-user"

@@ -9,7 +9,7 @@ type ReviewInspectorProps = {
   label: HumanLabel | null
   saving: boolean
   onUpdate: (patch: Partial<Pick<Segment, 'status' | 'start_seconds' | 'end_seconds' | 'user_note'>>) => void
-  onLabel: (patch: Pick<HumanLabel, 'utility_label' | 'shot_type' | 'motion_quality' | 'rejection_reason' | 'confidence' | 'note'>) => void
+  onLabel: (patch: Pick<HumanLabel, 'utility_label' | 'capture_type' | 'motion_intent' | 'shot_type' | 'motion_quality' | 'rejection_reason' | 'technical_issues' | 'confidence' | 'note'>) => void
   onDraft: (patch: Partial<Segment>) => void
   onMoveSegment: (offset: number) => void
 }

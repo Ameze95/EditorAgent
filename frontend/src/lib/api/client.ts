@@ -19,17 +19,32 @@ export type AnalysisJob = {
 
 export type AnalysisProfile = {
   name: string
+  label?: string
+  capture_type?: string
+  motion_intent?: string
   parameters: Record<string, number>
 }
 
 export type AnalyzeOverrides = {
   profile_name?: string
+  sample_fps?: number
+  window_seconds?: number
+  overlap_ratio?: number
   enter_threshold?: number
   exit_threshold?: number
   minimum_duration_seconds?: number
+  merge_gap_seconds?: number
+  handle_seconds?: number
   critical_jerk_threshold?: number
+  critical_stability_floor?: number
+  critical_tracking_floor?: number
   critical_hard_turn_ratio?: number
   critical_hard_brake_ratio?: number
+  weight_sharpness?: number
+  weight_exposure?: number
+  weight_direction?: number
+  weight_tracking?: number
+  weight_stability?: number
 }
 
 export type EvaluationMetrics = {
@@ -47,6 +62,7 @@ export type AnalysisRun = {
   started_at: string
   finished_at: string | null
   windows_path: string | null
+  windows_available: boolean
 }
 
 export type AnalysisWindow = {
@@ -81,9 +97,12 @@ export type HumanLabel = {
   start_seconds: number
   end_seconds: number
   utility_label: string
+  capture_type: string | null
+  motion_intent: string | null
   shot_type: string | null
   motion_quality: string | null
   rejection_reason: string | null
+  technical_issues: string[]
   confidence: string | null
   note: string | null
   annotator: string

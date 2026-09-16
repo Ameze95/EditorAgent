@@ -126,6 +126,17 @@ Estos valores son hipótesis iniciales; deben quedar documentados, configurables
 | `fpv_controlled_v1` | FPV con dinámica deliberada | Tolera velocidad y rotación mayores; penaliza irregularidad y golpes, no intensidad |
 | `static_aerial_v1` | Hover, paisajes y planos fijos | Premia baja variación; exige nitidez y exposición consistentes |
 
+Los presets se organizan por tipo de captura e intención, no sólo por dispositivo. La primera
+familia implementada incluye `cinematic_drone_v1`, `cinematic_traveling_v1`, `fpv_controlled_v1`,
+`static_aerial_v1`, `cinematic_gimbal_v1`, `handheld_cinematic_v1`, `tripod_static_v1`,
+`action_camera_v1` y `vehicle_traveling_v1`. Cada preset conserva sus parámetros completos,
+metadatos de captura y pesos del score en `AnalysisRun.config_json`.
+
+Los controles básicos son umbral de entrada/salida, duración mínima y tolerancia a maniobras
+bruscas. Los controles avanzados son muestreo, ventana, solapamiento, unión de huecos, handles,
+pisos de estabilidad/tracking y pesos del score. Los valores iniciales son hipótesis calibrables,
+no criterios editoriales universales.
+
 ## 6. Construcción de segmentos
 
 Pseudológica:

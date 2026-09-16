@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ProjectRoot = "$PSScriptRoot\..\projects\proyecto_prueba_02",
+    [string]$ProjectRoot = "$PSScriptRoot\..\projects\evaluacion_drone_01",
     [int]$ApiPort = 8765,
     [int]$FrontendPort = 5173,
     [string]$ApiHost = "127.0.0.1",
@@ -25,8 +25,18 @@ if (-not (Test-Path (Join-Path $frontendRoot 'package.json'))) {
 if (Test-Path $ProjectRoot) {
     $ProjectRoot = (Resolve-Path $ProjectRoot).Path
 } else {
-    Write-Host "La ruta de proyecto no existe todavía: $ProjectRoot" -ForegroundColor Yellow
-    $ProjectRoot = Join-Path $repoRoot 'projects'
+    Write-Host "La ruta de proyecto no existe: $ProjectRoot" -ForegroundColor Yellow
+    $projectsRoot = Join-Path $repoRoot 'projects'
+    $candidate = Get-ChildItem -Path $projectsRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName 'editoragent.db') } |
+        Sort-Object Name |
+        Select-Object -First 1
+    if ($null -ne $candidate) {
+        $ProjectRoot = $candidate.FullName
+        Write-Host "Usando el primer proyecto disponible: $ProjectRoot" -ForegroundColor Yellow
+    } else {
+        $ProjectRoot = $projectsRoot
+    }
 }
 
 if (-not (Test-Path (Join-Path $ProjectRoot 'editoragent.db'))) {

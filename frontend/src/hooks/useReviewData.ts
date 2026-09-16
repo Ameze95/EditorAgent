@@ -146,7 +146,7 @@ export function useReviewData() {
     setAnalysisJob(await reviewApi.cancelAnalysisJob(analysisJob.id))
   }
 
-  const saveLabel = async (patch: Pick<HumanLabel, 'utility_label' | 'shot_type' | 'motion_quality' | 'rejection_reason' | 'confidence' | 'note'>) => {
+  const saveLabel = async (patch: Pick<HumanLabel, 'utility_label' | 'capture_type' | 'motion_intent' | 'shot_type' | 'motion_quality' | 'rejection_reason' | 'technical_issues' | 'confidence' | 'note'>) => {
     if (!selected || !selectedClip) return
     try {
       const saved = await reviewApi.saveLabel({
@@ -157,6 +157,9 @@ export function useReviewData() {
         analysis_run_id: null,
         start_seconds: selected.start_seconds,
         end_seconds: selected.end_seconds,
+        capture_type: selectedLabel?.capture_type ?? null,
+        motion_intent: selectedLabel?.motion_intent ?? null,
+        technical_issues: selectedLabel?.technical_issues ?? [],
       })
       setLabels((items) => [...items.filter((item) => item.id !== saved.id && item.segment_id !== saved.segment_id), saved])
       setError(null)

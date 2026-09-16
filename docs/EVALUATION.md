@@ -129,3 +129,18 @@ JSON/CSV para crear versiones `development`, `validation` y `test` separadas por
 
 El monitor de aprendizaje contará decisiones y cobertura, pero no presentará esas cifras como
 entrenamiento de un modelo hasta que exista una ejecución reproducible y validada.
+
+## 10. Fuentes públicas auxiliares
+
+Los datasets públicos pueden servir para comprobar señales técnicas, pero no sustituyen las
+etiquetas editoriales propias. VisDrone aporta variedad de vídeo aéreo y condiciones de captura,
+pero sus anotaciones principales son detección y tracking de objetos. UAV123 y KITTI aportan
+secuencias y movimiento de cámara para pruebas de tracking/odometría, no juicios de utilidad para
+montaje. Datasets de estabilización o deblurring como DeepStab, GoPro y REDS pueden ayudar a
+validar blur y vibración, pero tienen objetivos distintos.
+
+Antes de incorporar material se debe revisar la licencia y separar los conjuntos por vuelo o
+sesión, evitando dividir ventanas del mismo clip entre entrenamiento y validación. La base de los
+presets será el cruce entre estas pruebas técnicas, el dataset privado consentido del usuario y
+las métricas de revisión humana: precision, recall, IoU temporal, cobertura top-k y tiempo
+ahorrado.

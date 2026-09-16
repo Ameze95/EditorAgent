@@ -24,6 +24,22 @@ class SegmentConfig:
     critical_tracking_floor: float = 0.20
     critical_hard_turn_ratio: float = 0.15
     critical_hard_brake_ratio: float = 0.15
+    weight_sharpness: float = 0.40
+    weight_exposure: float = 0.25
+    weight_direction: float = 0.20
+    weight_tracking: float = 0.10
+    weight_stability: float = 0.05
+
+    def __post_init__(self) -> None:
+        weights = (
+            self.weight_sharpness,
+            self.weight_exposure,
+            self.weight_direction,
+            self.weight_tracking,
+            self.weight_stability,
+        )
+        if any(weight < 0 for weight in weights) or abs(sum(weights) - 1.0) > 1e-6:
+            raise ValueError("Los pesos del score deben ser no negativos y sumar 1.")
 
 
 @dataclass
@@ -39,13 +55,16 @@ class SegmentCandidate:
         return round(self.end_seconds - self.start_seconds, 3)
 
 
-def preliminary_score(window: WindowMetrics) -> float:
+def preliminary_score(
+    window: WindowMetrics, config: SegmentConfig | None = None
+) -> float:
+    config = config or SegmentConfig()
     score = (
-        0.40 * window.sharpness_norm
-        + 0.25 * window.exposure_norm
-        + 0.20 * window.direction_coherence
-        + 0.10 * window.tracking_confidence
-        + 0.05 * window.stability_norm
+        config.weight_sharpness * window.sharpness_norm
+        + config.weight_exposure * window.exposure_norm
+        + config.weight_direction * window.direction_coherence
+        + config.weight_tracking * window.tracking_confidence
+        + config.weight_stability * window.stability_norm
         - 0.20 * window.jerk_norm
         - 0.30 * window.hard_turn_ratio
         - 0.30 * window.hard_brake_ratio
@@ -85,7 +104,7 @@ def build_segments(
     active_windows: list[WindowMetrics] = []
 
     for window in windows:
-        score = preliminary_score(window)
+        score = preliminary_score(window, config)
         if active_start is None:
             if score >= config.enter_threshold:
                 active_start = window.start_seconds
@@ -121,7 +140,7 @@ def build_segments(
         start = max(0.0, start - config.handle_seconds)
         end = min(clip_duration_seconds, end + config.handle_seconds)
         reasons, penalties = _reasons_and_penalties(candidate_windows)
-        score = sum(preliminary_score(window) for window in candidate_windows) / len(
+        score = sum(preliminary_score(window, config) for window in candidate_windows) / len(
             candidate_windows
         )
         segments.append(
